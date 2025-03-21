@@ -11,8 +11,6 @@ Rectangle {
     // Link to C++ properties
     property int timerValue: app.timerValue
     property string usbInfo: app.usbList
-    // If you use app.buttonText in C++ for your Start/Stop button, it appears here
-    // property string buttonText: app.buttonText  // optional if you prefer to store locally
 
     ColumnLayout {
         anchors.fill: parent
@@ -39,7 +37,6 @@ Rectangle {
         Button {
             id: startStopButton
             Layout.alignment: Qt.AlignHCenter
-            // Uses the button text from C++: app.buttonText
             text: app.buttonText
             onClicked: app.onStartStopClicked()
 

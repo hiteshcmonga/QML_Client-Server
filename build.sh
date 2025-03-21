@@ -1,13 +1,13 @@
 #!/bin/bash
 # Cross-platform build script for QML Client-Server Suite
 
-# Add Docker build option
+# FUTURE: Add Docker build option
 if [ "$1" == "docker" ]; then
     docker-compose build
     exit 0
 fi
 
-# Remove any existing build directory (clears out old Windows cache)
+# Remove any existing build directory
 rm -rf build
 
 # Create build directory

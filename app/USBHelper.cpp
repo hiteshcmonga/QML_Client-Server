@@ -8,7 +8,6 @@ QString USBHelper::listDevices() {
     proc.setProcessChannelMode(QProcess::MergedChannels);
 
     if (QSysInfo::productType() == "windows") {
-        // Improved PowerShell command
         QString command =
             "Get-PnpDevice -PresentOnly | "
             "Where-Object { $_.InstanceId -match 'USB' } | "

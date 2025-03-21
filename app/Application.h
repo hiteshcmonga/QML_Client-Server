@@ -37,7 +37,7 @@ public slots:
     void onExitClicked();
     void onCleanupClicked();
 
-private slots:  // Add this section
+private slots:
     void onServerOutput();
     void onQMLFetched(const QString &qmlContent);
 

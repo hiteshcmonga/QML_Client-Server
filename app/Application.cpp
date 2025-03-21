@@ -1,6 +1,6 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
-#include <shellapi.h>  // For ShellExecuteW
+#include <shellapi.h>
 #endif
 #include "Application.h"
 #include "USBHelper.h"
@@ -81,7 +81,6 @@ void Application::onServerOutput() {
         serverPort = portStr.toInt(&ok);
         if (ok) {
             qDebug() << "[DEBUG] Server running on port:" << serverPort;
-            // Delay the request by 1 second (1000 ms)
             QTimer::singleShot(1000, this, [this]() {
                 QString url = QString("http://127.0.0.1:%1/api/v1/getQML").arg(serverPort);
                 webClient->fetchQML(url, "main.qml", [this](const QString &qmlContent) {
@@ -115,7 +114,6 @@ void Application::onQMLFetched(const QString &qmlContent) {
                 qDebug() << error.toString();
             }
         } else {
-            // NEW: Set an initial window size
             view->resize(640, 480);
 
             view->show();
@@ -138,7 +136,7 @@ void Application::onStartStopClicked() {
         timerRunning = false;
         m_buttonText = "Start";
     }
-    emit buttonTextChanged();  // Changed from updateButtonText
+    emit buttonTextChanged();
     qDebug() << "Button text changed to:" << m_buttonText;
 }
 
