@@ -3,7 +3,9 @@ project(Application)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_PREFIX_PATH "C:/Qt/6.8.2/mingw_64/lib/cmake" CACHE PATH "Qt install path")
+if(WIN32)
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.8.2/mingw_64/lib/cmake" CACHE PATH "Qt install path")
+endif()
 
 find_package(Qt6 COMPONENTS Core Quick Network QuickControls2 REQUIRED)
 

@@ -56,10 +56,17 @@ void Application::launchServer() {
     qDebug() << "[DEBUG] Launching server from:" << serverScript;
 
     serverProcess->setProcessChannelMode(QProcess::MergedChannels);
-    serverProcess->start("python", QStringList() << serverScript);
+
+    #ifndef Q_OS_WIN
+        // On Linux/WSL, use "python3"
+        serverProcess->start("python3", QStringList() << serverScript);
+    #else
+        // On Windows, use "python"
+        serverProcess->start("python", QStringList() << serverScript);
+    #endif
 
     connect(serverProcess, &QProcess::readyReadStandardOutput, this, &Application::onServerOutput);
-    connect(serverProcess, &QProcess::errorOccurred, [this](QProcess::ProcessError error) {
+    connect(serverProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
         qDebug() << "[ERROR] Server process error:" << error << serverProcess->errorString();
     });
 }
@@ -74,13 +81,16 @@ void Application::onServerOutput() {
         serverPort = portStr.toInt(&ok);
         if (ok) {
             qDebug() << "[DEBUG] Server running on port:" << serverPort;
-            QString url = QString("http://127.0.0.1:%1/api/v1/getQML").arg(serverPort);
-            webClient->fetchQML(url, "main.qml", [this](const QString &qmlContent) {
-                if (qmlContent.isEmpty()) {
-                    qDebug() << "[ERROR] Received empty QML content";
-                } else {
-                    this->onQMLFetched(qmlContent);
-                }
+            // Delay the request by 1 second (1000 ms)
+            QTimer::singleShot(1000, this, [this]() {
+                QString url = QString("http://127.0.0.1:%1/api/v1/getQML").arg(serverPort);
+                webClient->fetchQML(url, "main.qml", [this](const QString &qmlContent) {
+                    if (qmlContent.isEmpty()) {
+                        qDebug() << "[ERROR] Received empty QML content";
+                    } else {
+                        this->onQMLFetched(qmlContent);
+                    }
+                });
             });
         }
     }

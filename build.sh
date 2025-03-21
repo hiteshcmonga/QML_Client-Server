@@ -7,12 +7,27 @@ if [ "$1" == "docker" ]; then
     exit 0
 fi
 
+# Remove any existing build directory (clears out old Windows cache)
+rm -rf build
+
 # Create build directory
 mkdir -p build
 cd build
 
-# Standard build commands
-cmake ../app
+# On Linux (including WSL), set CMAKE_PREFIX_PATH to point to the Qt6 installation directory
+case "$(uname -s)" in
+    Linux*)
+        export CMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/cmake/Qt6:$CMAKE_PREFIX_PATH
+        cmake -G "Unix Makefiles" ../app
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        cmake ../app
+        ;;
+    *)
+        cmake ../app
+        ;;
+esac
+
 cmake --build .
 
 # Platform-specific post-build steps
@@ -20,7 +35,7 @@ case "$(uname -s)" in
     Linux*)
         # Linux-specific: Set QML2_IMPORT_PATH
         export QML2_IMPORT_PATH="${QML2_IMPORT_PATH}:$(qtpaths --import-path)"
-        echo "Linux build complete. Ensure QtQuick.Controls is installed system-wide."
+        echo "Linux build complete."
         ;;
     MINGW*|MSYS*|CYGWIN*)
         # Windows-specific deployment
@@ -32,7 +47,6 @@ case "$(uname -s)" in
                 "/c/Qt/6.7.0/mingw_64/bin"
                 "$HOME/Qt/6.8.2/mingw_64/bin"
             )
-            
             for path in "${QT_PATHS[@]}"; do
                 if [ -f "${path}/windeployqt.exe" ]; then
                     "${path}/windeployqt.exe" --qmldir ../server/qml_files Application.exe
