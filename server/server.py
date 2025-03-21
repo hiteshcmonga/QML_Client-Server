@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import shutil
 import sys
 import signal
 import random
@@ -52,25 +53,29 @@ def create_app():
         logger.info("Sending QML file content for '%s'", data["filename"])
         return Response(content, status=200, mimetype="text/plain")
 
-    @app.route("/api/v1/shutdown", methods=["POST"])
+    @app.route('/api/v1/shutdown', methods=['POST'])
     def shutdown():
         logger.info("Received shutdown request")
-        os.kill(os.getpid(), signal.SIGINT)
-        return "Server shutting down...", 200
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func:
+            func()
+            return "Server shutting down...", 200
+        abort(500, description="Server shutdown not supported")
 
-    @app.route("/api/v1/cleanup", methods=["POST"])
+    @app.route('/api/v1/cleanup', methods=['POST'])
     def cleanup():
-        logger.info("Received cleanup request.")
-        logger.info("Cleanup initiated. Preparing to shutdown server for cleanup.")
-        # Attempt to retrieve and call the shutdown function for cleanup
-        func = request.environ.get("werkzeug.server.shutdown")
-        if func is None:
-            logger.error("Server shutdown function not available during cleanup")
-            abort(500, description="Server shutdown function not available")
-        logger.info("Server shutdown initiated for cleanup.")
-        func()
-        logger.info("Cleanup complete. Server shutdown function executed.")
-        return "Cleanup initiated. Server will shutdown and perform cleanup.", 200
+        logger.info("Initiating full cleanup")
+        try:
+            # Delete all files in server directory
+            for root, dirs, files in os.walk(BASE_DIR):
+                for f in files:
+                    os.remove(os.path.join(root, f))
+                for d in dirs:
+                    shutil.rmtree(os.path.join(root, d))
+            return "Cleanup completed", 200
+        except Exception as e:
+            logger.error(f"Cleanup failed: {str(e)}")
+            return "Cleanup failed", 500
 
     return app
 

@@ -1,3 +1,7 @@
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <shellapi.h>  // For ShellExecuteW
+#endif
 #include "Application.h"
 #include "USBHelper.h"
 #include <QDir>
@@ -141,29 +145,70 @@ void Application::onListUSBClicked() {
 }
 
 void Application::shutdownServer(bool cleanup) {
-    if (serverPort > 0) {
-        QString url = QString("http://127.0.0.1:%1/api/v1/").arg(serverPort);
-        url += (cleanup ? "cleanup" : "shutdown");
-        webClient->post(url, "{}");
-    }
     if (serverProcess->state() == QProcess::Running) {
+        // Graceful termination
         serverProcess->terminate();
-        serverProcess->waitForFinished(3000);
+        if (!serverProcess->waitForFinished(3000)) {
+            #ifdef Q_OS_WIN
+                QProcess killTask;
+                killTask.start("taskkill",
+                    {"/F", "/T", "/PID", QString::number(serverProcess->processId())});
+                killTask.waitForFinished();
+            #else
+                serverProcess->kill();
+            #endif
+        }
+    }
+
+    if (cleanup && serverPort > 0) {
+        webClient->post(QString("http://127.0.0.1:%1/api/v1/cleanup").arg(serverPort), "{}");
     }
 }
 
 void Application::onExitClicked() {
     shutdownServer();
-    QCoreApplication::quit();
+    qDebug() << "[DEBUG] Shutdown has been initiated.";
+    // Delay the quit call by 2 seconds so the debug log is visible
+    QTimer::singleShot(2000, QCoreApplication::instance(), &QCoreApplication::quit);
 }
 
 void Application::onCleanupClicked() {
-    shutdownServer(true);
-    QString serverScript = QDir::currentPath() + "/server/server.py";
-    QFile::remove(serverScript);
+    shutdownServer(true);  // Ensure server is terminated first
+
     QString selfPath = QCoreApplication::applicationFilePath();
-    QString cleanupCmd = QString("bash -c 'sleep 3 && rm -f \"%1\"'").arg(selfPath);
-    qDebug() << "Scheduling self-deletion with command:" << cleanupCmd;
-    system(cleanupCmd.toStdString().c_str());
+    QString serverDir = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../server");
+
+#ifdef Q_OS_WIN
+    QString batchContent = QString(
+        "@echo off\n"
+        "echo Cleanup started at %%TIME%% >> \"%%TEMP%%\\cleanup.log\"\n"
+        "timeout /t 5 >nul\n"  // increased wait time for process termination
+        "del /F /Q \"%1\" >> \"%%TEMP%%\\cleanup.log\" 2>&1\n"
+        "if exist \"%2\" rmdir /S /Q \"%2\" >> \"%%TEMP%%\\cleanup.log\" 2>&1\n"
+        "del /F /Q \"%%~f0\" >> \"%%TEMP%%\\cleanup.log\" 2>&1\n"
+        "echo Cleanup finished at %%TIME%% >> \"%%TEMP%%\\cleanup.log\"\n"
+    ).arg(selfPath).arg(serverDir);
+
+    QTemporaryFile tempFile(QDir::tempPath() + "/cleanup_XXXXXX.bat");
+    if (tempFile.open()) {
+        tempFile.write(batchContent.toUtf8());
+        tempFile.close();
+
+        // Convert path to native format and wrap in quotes
+        QString batPath = QDir::toNativeSeparators(tempFile.fileName());
+        QStringList args;
+        args << "/C" << QString("\"%1\"").arg(batPath);
+
+        bool detached = QProcess::startDetached("cmd.exe", args);
+        if (!detached) {
+            qDebug() << "[DEBUG] Failed to start cleanup batch process";
+        }
+    } else {
+        qDebug() << "[DEBUG] Failed to create temporary cleanup batch file";
+    }
+#else
+    QProcess::execute("sh", {"-c", QString("sleep 2; rm -f '%1'; rm -rf '%2'")
+                             .arg(selfPath).arg(serverDir)});
+#endif
     QCoreApplication::quit();
 }

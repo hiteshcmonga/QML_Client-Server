@@ -1,6 +1,12 @@
 #!/bin/bash
 # Cross-platform build script for QML Client-Server Suite
 
+# Add Docker build option
+if [ "$1" == "docker" ]; then
+    docker-compose build
+    exit 0
+fi
+
 # Create build directory
 mkdir -p build
 cd build
